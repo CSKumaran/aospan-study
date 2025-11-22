@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Working Memory Study</title>
+    <style>
+        :root {
+            --color-background: #fcfcf9;
+            --color-surface: #fffffd;
+            --color-text: #134252;
+            --color-text-secondary: #626c71;
+            --color-primary: #21808d;
+            --color-primary-hover: #1d7480;
+            --color-primary-active: #1a6873;
+            --color-secondary: rgba(94, 82, 64, 0.12);
+            --color-secondary-hover: rgba(94, 82, 64, 0.2);
+            --color-border: rgba(94, 82, 64, 0.2);
+            --color-error: #c0152f;
+            --color-success: #21808d;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+            --radius-base: 8px;
+            --radius-lg: 12px;
+            --space-8: 8px;
+            --space-12: 12px;
+            --space-16: 16px;
+            --space-24: 24px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --color-background: #1f2121;
+                --color-surface: #262828;
+                --color-text: #f5f5f5;
+                --color-text-secondary: rgba(167, 169, 169, 0.7);
+                --color-primary: #32b8c6;
+                --color-primary-hover: #2da6b2;
+                --color-primary-active: #2996a1;
+                --color-secondary: rgba(119, 124, 124, 0.15);
+                --color-secondary-hover: rgba(119, 124, 124, 0.25);
+                --color-border: rgba(119, 124, 124, 0.3);
+                --color-error: #ff5459;
+            }
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-background);
+            color: var(--color-text);
+            line-height: 1.5;
+            padding: var(--space-16);
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .view { display: none; }
+        .view.active { display: block; }
+        .card {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border);
+            padding: var(--space-24);
+            box-shadow: var(--shadow-sm);
+            margin-bottom: var(--space-16);
+        }
+        h1 { font-size: 24px; margin-bottom: var(--space-16); font-weight: 600; }
+        h2 { font-size: 20px; margin-bottom: var(--space-12); font-weight: 550; }
+        h3 { font-size: 18px; margin-bottom: var(--space-12); font-weight: 550; }
+        p { margin-bottom: var(--space-12); color: var(--color-text-secondary); }
+        .btn {
+            display: inline-block;
+            padding: var(--space-12) var(--space-24);
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-base);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin: var(--space-8) var(--space-8) 0 0;
+        }
+        .btn:hover { background: var(--color-primary-hover); }
+        .btn:active { background: var(--color-primary-active); }
+        .btn-secondary {
+            background: var(--color-secondary);
+            color: var(--color-text);
+        }
+        .btn-secondary:hover { background: var(--color-secondary-hover); }
+        .input-field {
+            width: 100%;
+            padding: var(--space-12);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            font-size: 14px;
+            background: var(--color-surface);
+            color: var(--color-text);
+            margin-bottom: var(--space-16);
+        }
+        label {
+            display: block;
+            margin-top: var(--space-12);
+            margin-bottom: var(--space-8);
+            font-weight: 500;
+            font-size: 14px;
+        }
+        @media (max-width: 768px) {
+            body { padding: var(--space-8); }
+            .card { padding: var(--space-16); }
+            h1 { font-size: 20px; }
+            h2 { font-size: 18px; }
+            .math-problem { font-size: 24px; }
+            .letter-display { font-size: 48px; }
+            .recall-input { width: 40px; height: 40px; font-size: 20px; }
+            .btn { padding: var(--space-12) var(--space-16); font-size: 14px; }
+        }
+        .task-display {
+            text-align: center;
+            padding: var(--space-24);
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .math-problem {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: var(--space-24);
+        }
+        .letter-display {
+            font-size: 64px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+        .recall-grid {
+            display: flex;
+            gap: var(--space-8);
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: var(--space-24) 0;
+        }
+        .recall-input {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 600;
+            text-transform: uppercase;
+            border: 2px solid var(--color-border);
+            border-radius: var(--radius-base);
+            background: var(--color-surface);
+            color: var(--color-text);
+        }
+        .recall-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--color-secondary);
+            border-radius: 4px;
+            margin-bottom: var(--space-16);
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--color-primary);
+            transition: width 0.3s;
+        }
+        .instruction-list {
+            margin: var(--space-16) 0;
+            padding-left: var(--space-24);
+        }
+        .instruction-list li {
+            margin-bottom: var(--space-8);
+            color: var(--color-text-secondary);
+        }
+        .alert {
+            padding: var(--space-12);
+            border-radius: var(--radius-base);
+            margin-bottom: var(--space-16);
+            border: 1px solid;
+        }
+        .alert-warning {
+            background: rgba(168, 75, 47, 0.1);
+            border-color: rgba(168, 75, 47, 0.25);
+            color: #a84b2f;
+        }
+        .alert-error {
+            background: rgba(192, 21, 47, 0.1);
+            border-color: rgba(192, 21, 47, 0.25);
+            color: var(--color-error);
+        }
+        .controls {
+            display: flex;
+            gap: var(--space-12);
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-12);
+            margin: var(--space-16) 0;
+        }
+        .stat-item {
+            padding: var(--space-12);
+            background: var(--color-secondary);
+            border-radius: var(--radius-base);
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--color-primary);
+        }
+        .stat-label {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            margin-top: var(--space-8);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Welcome View -->
+        <div id="welcomeView" class="view active">
+            <div class="card">
+                <h1>Working Memory Capacity Study</h1>
+                <p>Welcome! You are about to complete the Automated Operation Span (AOSPAN) task, a validated measure of working memory capacity.</p>
+                <p><strong>Time Required:</strong> Approximately 10-12 minutes</p>
+                
+                <h3>Task Overview</h3>
+                <ul class="instruction-list">
+                    <li>You will solve simple math problems while remembering letters</li>
+                    <li>After each set of problem-letter pairs, you'll recall the letters in order</li>
+                    <li>You must maintain at least 85% accuracy on math problems</li>
+                    <li>There will be practice trials before the actual test</li>
+                </ul>
+                
+                <div class="alert alert-warning">
+                    <strong>Important:</strong> Please work in a quiet environment without distractions. Once started, the task should be completed in one sitting.
+                </div>
+                
+                <h3>Participant Information</h3>
+                <label for="participantId">Student ID: *</label>
+                <input type="text" id="participantId" class="input-field" placeholder="Enter your student ID" required>
+                
+                <label for="participantAge">Age: *</label>
+                <input type="number" id="participantAge" class="input-field" placeholder="Enter your age" min="18" max="100" required>
+                
+                <label for="participantSex">Sex: *</label>
+                <select id="participantSex" class="input-field" required>
+                    <option value="">Select...</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+                
+                <label for="participantEmail">Email: *</label>
+                <input type="email" id="participantEmail" class="input-field" placeholder="your.email@example.com" required>
+                
+                <button class="btn" onclick="startExperiment()">Begin Experiment</button>
+            </div>
+        </div>
+
+        <!-- Letter Practice Instructions -->
+        <div id="letterPracticeInstructionsView" class="view">
+            <div class="card">
+                <h1>Practice: Letter Recall Only</h1>
+                <p>First, let's practice remembering letters.</p>
+                <ul class="instruction-list">
+                    <li>You will see a series of letters, one at a time</li>
+                    <li>Each letter will appear for 800ms</li>
+                    <li>After the sequence, you'll recall all letters in order</li>
+                    <li>You will complete 4 practice trials (2 sets of 2 letters, 2 sets of 3 letters)</li>
+                </ul>
+                <button class="btn" onclick="startLetterPractice()">Start Letter Practice</button>
+            </div>
+        </div>
+
+        <!-- Math Practice Instructions -->
+        <div id="mathPracticeInstructionsView" class="view">
+            <div class="card">
+                <h1>Practice: Math Problems Only</h1>
+                <p>Now let's practice solving math problems.</p>
+                <ul class="instruction-list">
+                    <li>You will see simple arithmetic problems like: (3 + 2) - 1 = ?</li>
+                    <li>First solve the problem mentally and click "Ready"</li>
+                    <li>Then you'll see an answer and judge if it's correct (True/False)</li>
+                    <li>Try to work as quickly and accurately as possible</li>
+                    <li>You will complete 15 practice problems</li>
+                    <li>Your response times will be used to set time limits for the main task</li>
+                </ul>
+                <button class="btn" onclick="startMathPractice()">Start Math Practice</button>
+            </div>
+        </div>
+
+        <!-- Combined Practice Instructions -->
+        <div id="combinedPracticeInstructionsView" class="view">
+            <div class="card">
+                <h1>Practice: Combined Task</h1>
+                <p>Now you'll practice both tasks together.</p>
+                <ul class="instruction-list">
+                    <li>You'll alternate between solving math problems and seeing letters</li>
+                    <li>Solve the math problem, then remember the letter that appears</li>
+                    <li>After the set, recall all the letters in order</li>
+                    <li>You will complete 3 practice trials (all with 2 items)</li>
+                </ul>
+                <div class="alert alert-warning">
+                    <strong>Important:</strong> Focus equally on both tasks. Don't sacrifice math accuracy to remember letters better.
+                </div>
+                <button class="btn" onclick="startCombinedPractice()">Start Combined Practice</button>
+            </div>
+        </div>
+
+        <!-- Main Task Instructions -->
+        <div id="mainTaskInstructionsView" class="view">
+            <div class="card">
+                <h1>Ready for the Main Task</h1>
+                <p>Great work on the practice! Now you'll complete the actual AOSPAN task.</p>
+                <ul class="instruction-list">
+                    <li>You'll complete 10 trials across 2 blocks</li>
+                    <li>Set sizes will range from 3 to 7 items</li>
+                    <li>Math problems now have time limits based on your practice performance</li>
+                    <li>Remember: maintain at least 85% accuracy on math problems</li>
+                </ul>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="practiceAccuracy">--</div>
+                        <div class="stat-label">Practice Math Accuracy</div>
+                    </div>
+                </div>
+                <button class="btn" onclick="startMainTask()">Begin Main Task</button>
+            </div>
+        </div>
+
+        <!-- Task Display -->
+        <div id="taskView" class="view">
+            <div class="card">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <h2 id="taskHeader">AOSPAN Task</h2>
+                <div class="task-display" id="taskDisplay"></div>
+                <div class="controls" id="taskControls"></div>
+            </div>
+        </div>
+
+        <!-- Results View -->
+        <div id="resultsView" class="view">
+            <div class="card">
+                <h1>Task Complete!</h1>
+                <p>Thank you for completing the AOSPAN task. Your data has been recorded.</p>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="finalScore">--</div>
+                        <div class="stat-label">AOSPAN Score (out of 50)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="finalMathAccuracy">--</div>
+                        <div class="stat-label">Math Accuracy</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="lettersCorrect">--</div>
+                        <div class="stat-label">Total Letters Correct</div>
+                    </div>
+                </div>
+                <button class="btn" onclick="continueToNextPhase()">Continue to Video Tasks</button>
+            </div>
+        </div>
+
+        <!-- Retry View (for <85% math accuracy) -->
+        <div id="retryView" class="view">
+            <div class="card">
+                <h1>Math Accuracy Below Threshold</h1>
+                <div class="alert alert-error">
+                    Your math accuracy was below 85%. To ensure valid results, please retry the AOSPAN task. Remember to focus equally on both the math problems and letter recall.
+                </div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="retryMathAccuracy">--</div>
+                        <div class="stat-label">Your Math Accuracy</div>
+                    </div>
+                </div>
+                <button class="btn" onclick="retryAOSPAN()">Retry AOSPAN Task</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global experiment state
+        const experimentState = {
+            participantId: '',
+            participantAge: '',
+            participantSex: '',
+            participantEmail: '',
+            aospan: {
+                letterPool: 'FHKLNRSTY',
+                setSizes: [3, 4, 5, 6, 7], // Will be repeated twice (2 blocks)
+                currentPhase: '', // 'letterPractice', 'mathPractice', 'combinedPractice', 'mainTask'
+                currentBlock: 0,
+                currentTrial: 0,
+                currentItem: 0,
+                currentSetSize: 0,
+                currentLetters: [],
+                mathProblems: [],
+                mathResponses: [],
+                mathRTs: [],
+                letterRecalls: [],
+                trialData: [],
+                mathCorrect: 0,
+                mathTotal: 0,
+                totalScore: 0,
+                totalLettersCorrect: 0,
+                mathTimeLimit: 5000, // Default 5s, will be calculated from practice
+                practiceMathRTs: []
+            }
+        };
+
+        // View management
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+        }
+
+        // Experiment initialization
+        function startExperiment() {
+            const id = document.getElementById('participantId').value.trim();
+            const age = document.getElementById('participantAge').value.trim();
+            const sex = document.getElementById('participantSex').value;
+            const email = document.getElementById('participantEmail').value.trim();
+            
+            if (!id || !age || !sex || !email) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            if (!email.includes('@') || !email.includes('.')) {
+                alert('Please enter a valid email address');
+                return;
+            }
+            
+            experimentState.participantId = id;
+            experimentState.participantAge = age;
+            experimentState.participantSex = sex;
+            experimentState.participantEmail = email;
+            
+            showView('letterPracticeInstructionsView');
+        }
+
+        // Letter Practice (4 trials: 2x size 2, 2x size 3)
+        function startLetterPractice() {
+            experimentState.aospan.currentPhase = 'letterPractice';
+            experimentState.aospan.currentTrial = 0;
+            const practiceSizes = [2, 2, 3, 3];
+            runLetterPracticeTrial(practiceSizes);
+        }
+
+        function runLetterPracticeTrial(sizes) {
+            const state = experimentState.aospan;
+            if (state.currentTrial >= sizes.length) {
+                showView('mathPracticeInstructionsView');
+                return;
+            }
+            
+            state.currentSetSize = sizes[state.currentTrial];
+            state.currentLetters = [];
+            state.currentItem = 0;
+            
+            showView('taskView');
+            updateProgress((state.currentTrial / sizes.length) * 100);
+            document.getElementById('taskHeader').textContent = `Letter Practice - Trial ${state.currentTrial + 1} of ${sizes.length}`;
+            
+            showNextLetter(() => {
+                showLetterRecall(() => {
+                    state.currentTrial++;
+                    runLetterPracticeTrial(sizes);
+                });
+            });
+        }
+
+        function showNextLetter(callback) {
+            const state = experimentState.aospan;
+            if (state.currentItem >= state.currentSetSize) {
+                callback();
+                return;
+            }
+            
+            const letter = state.letterPool[Math.floor(Math.random() * state.letterPool.length)];
+            state.currentLetters.push(letter);
+            
+            document.getElementById('taskDisplay').innerHTML = `<div class="letter-display">${letter}</div>`;
+            document.getElementById('taskControls').innerHTML = '';
+            
+            setTimeout(() => {
+                state.currentItem++;
+                showNextLetter(callback);
+            }, 800);
+        }
+
+        // Math Practice (15 trials)
+        function startMathPractice() {
+            experimentState.aospan.currentPhase = 'mathPractice';
+            experimentState.aospan.currentTrial = 0;
+            experimentState.aospan.practiceMathRTs = [];
+            runMathPracticeTrial();
+        }
+
+        function runMathPracticeTrial() {
+            const state = experimentState.aospan;
+            if (state.currentTrial >= 15) {
+                // Calculate time limit: mean + 2.5*SD
+                const mean = state.practiceMathRTs.reduce((a, b) => a + b, 0) / state.practiceMathRTs.length;
+                const variance = state.practiceMathRTs.reduce((sum, rt) => sum + Math.pow(rt - mean, 2), 0) / state.practiceMathRTs.length;
+                const sd = Math.sqrt(variance);
+                state.mathTimeLimit = Math.round(mean + 2.5 * sd);
+                console.log(`Math time limit set to ${state.mathTimeLimit}ms (mean: ${mean.toFixed(0)}ms, SD: ${sd.toFixed(0)}ms)`);
+                showView('combinedPracticeInstructionsView');
+                return;
+            }
+            
+            showView('taskView');
+            updateProgress((state.currentTrial / 15) * 100);
+            document.getElementById('taskHeader').textContent = `Math Practice - Problem ${state.currentTrial + 1} of 15`;
+            
+            const problem = generateMathProblem();
+            const startTime = Date.now();
+            
+            // STEP 1: Show problem with ? and Ready button (UNTIMED in practice)
+            document.getElementById('taskDisplay').innerHTML = `
+                <div class="math-problem">${problem.problemQuestion}</div>
+                <p style="color: var(--color-text-secondary); font-size: 14px; margin-top: 16px;">Solve the problem mentally, then click Ready</p>
+            `;
+            document.getElementById('taskControls').innerHTML = `
+                <button class="btn" onclick="showMathPracticeVerification(${problem.isCorrect}, ${startTime})">Ready</button>
+            `;
+            
+            window.currentMathProblem = problem;
+        }
+        
+        function showMathPracticeVerification(correctAnswer, solveStartTime) {
+            const solvingRT = Date.now() - solveStartTime;
+            const problem = window.currentMathProblem;
+            
+            // STEP 2: Show answer for verification (UNTIMED)
+            document.getElementById('taskDisplay').innerHTML = `
+                <div class="math-problem">${problem.answerToVerify}</div>
+                <p style="color: var(--color-text-secondary); font-size: 14px; margin-top: 16px;">Is this answer correct?</p>
+            `;
+            document.getElementById('taskControls').innerHTML = `
+                <button class="btn" onclick="answerMathPractice(${solvingRT})">True</button>
+                <button class="btn" onclick="answerMathPractice(${solvingRT})">False</button>
+            `;
+        }
+
+        function answerMathPractice(solvingRT) {
+            experimentState.aospan.practiceMathRTs.push(solvingRT);
+            experimentState.aospan.currentTrial++;
+            runMathPracticeTrial();
+        }
+
+        // Combined Practice (3 trials of size 2)
+        function startCombinedPractice() {
+            experimentState.aospan.currentPhase = 'combinedPractice';
+            experimentState.aospan.currentTrial = 0;
+            experimentState.aospan.mathCorrect = 0;
+            experimentState.aospan.mathTotal = 0;
+            runCombinedPracticeTrial();
+        }
+
+        function runCombinedPracticeTrial() {
+            const state = experimentState.aospan;
+            if (state.currentTrial >= 3) {
+                // Show accuracy before main task
+                const accuracy = ((state.mathCorrect / state.mathTotal) * 100).toFixed(1);
+                document.getElementById('practiceAccuracy').textContent = `${accuracy}%`;
+                showView('mainTaskInstructionsView');
+                return;
+            }
+            
+            state.currentSetSize = 2;
+            state.currentLetters = [];
+            state.currentItem = 0;
+            
+            showView('taskView');
+            updateProgress((state.currentTrial / 3) * 100);
+            document.getElementById('taskHeader').textContent = `Combined Practice - Trial ${state.currentTrial + 1} of 3`;
+            
+            showNextCombinedItem(() => {
+                showLetterRecall(() => {
+                    state.currentTrial++;
+                    runCombinedPracticeTrial();
+                });
+            });
+        }
+
+        function showNextCombinedItem(callback) {
+            const state = experimentState.aospan;
+            if (state.currentItem >= state.currentSetSize) {
+                callback();
+                return;
+            }
+            
+            const problem = generateMathProblem();
+            const startTime = Date.now();
+            
+            // STEP 1: Show problem with ? and Ready button (UNTIMED in practice)
+            document.getElementById('taskDisplay').innerHTML = `
+                <div class="math-problem">${problem.problemQuestion}</div>
+                <p style="color: var(--color-text-secondary); font-size: 14px; margin-top: 16px;">Solve the problem mentally, then click Ready</p>
+            `;
+            document.getElementById('taskControls').innerHTML = `
+                <button class="btn" onclick="showCombinedVerification(${problem.isCorrect}, ${startTime})">Ready</button>
+            `;
+            
+            window.currentCombinedProblem = { problem, startTime, callback };
+        }
+        
+        function showCombinedVerification(correctAnswer, solveStartTime) {
+            const problem = window.currentCombinedProblem.problem;
+            
+            // STEP 2: Show answer for verification (UNTIMED)
+            document.getElementById('taskDisplay').innerHTML = `
+                <div class="math-problem">${problem.answerToVerify}</div>
+                <p style="color: var(--color-text-secondary); font-size: 14px; margin-top: 16px;">Is this answer correct?</p>
+            `;
+            document.getElementById('taskControls').innerHTML = `
+                <button class="btn" onclick="answerCombinedMath(${correctAnswer})">True</button>
+                <button class="btn" onclick="answerCombinedMath(${correctAnswer})">False</button>
+            `;
+        }
+
+        function answerCombinedMath(correctAnswer) {
+            const state = experimentState.aospan;
+            const userClickedTrue = event.target.textContent === 'True';
+            const correct = (userClickedTrue && correctAnswer) || (!userClickedTrue && !correctAnswer);
+            
+            state.mathTotal++;
+            if (correct) state.mathCorrect++;
+            
+            // Show letter
+            const letter = state.letterPool[Math.floor(Math.random() * state.letterPool.length)];
+            state.currentLetters.push(letter);
+            
+            document.getElementById('taskDisplay').innerHTML = `<div class="letter-display">${letter}</div>`;
+            document.getElementById('taskControls').innerHTML = '';
+            
+            setTimeout(() => {
+                state.currentItem++;
+                showNextCombinedItem(window.currentCombinedProblem.callback);
+            }, 1000);
+        }
+
+        // Main Task (2 blocks × 5 trials = 10 trials total)
+        function startMainTask() {
+            const state = experimentState.aospan;
+            state.currentPhase = 'mainTask';
+            state.currentBlock = 0;
+            state.currentTrial = 0;
+            state.mathCorrect = 0;
+            state.mathTotal = 0;
+            state.totalScore = 0;
+            state.totalLettersCorrect = 0;
+            state.trialData = [];
+            runMainTaskTrial();
+        }
+
+        function runMainTaskTrial() {
+            const state = experimentState.aospan;
+            const totalTrials = state.setSizes.length * 2; // 5 sizes × 2 blocks = 10 trials
+            
+            if (state.currentTrial >= totalTrials) {
+                finishAOSPAN();
+                return;
+            }
+            
+            // Determine set size (cycle through setSizes twice)
+            const sizeIndex = state.currentTrial % state.setSizes.length;
+            state.currentSetSize = state.setSizes[sizeIndex];
+            state.currentLetters = [];
+            state.currentItem = 0;
+            
+            showView('taskView');
+            const progress = ((state.currentTrial + 1) / totalTrials) * 100;
+            updateProgress(progress);
+            document.getElementById('taskHeader').textContent = `Trial ${state.currentTrial + 1} of ${totalTrials} - Set Size: ${state.currentSetSize}`;
+            
+            showNextMainItem(() => {
+                showLetterRecall(() => {
+                    state.currentTrial++;
+                    runMainTaskTrial();
+                }, true); // true = main task scoring
+            });
+        }
+
+        function showNextMainItem(callback) {
+            const state = experimentState.aospan;
+            if (state.currentItem >= state.currentSetSize) {
+                callback();
+                return;
+            }
+            
+            const problem = generateMathProblem();
+            const startTime = Date.now();
+            
+            // STEP 1: Show math problem with "Ready" button (TIMED)
+            document.getElementById('taskDisplay').innerHTML = `
+                <div class="math-problem">${problem.problemQuestion}</div>
+                <p style="color: var(--color-text-secondary); font-size: 14px; margin-top: 16px;">Solve the problem mentally, then click Ready</p>
+            `;
+            document.getElementById('taskControls').innerHTML = `
+                <button class="btn" onclick="showMathVerification(${problem.isCorrect}, ${startTime})">Ready</button>
+            `;
+            
+            // Set timeout for solving phase
+            window.currentMainTimeout = setTimeout(() => {
+                showMathVerification(problem.isCorrect, startTime, true); // true = timeout
+            }, state.mathTimeLimit);
+            
+            window.currentMainCallback = callback;
+            window.currentMathProblem = problem;
+        }
+        
+        function showMathVerification(correctAnswer, solveStartTime, isTimeout = false) {
+            clearTimeout(window.currentMainTimeout);
+            
+            const solvingRT = Date.now() - solveStartTime;
+            const problem = window.currentMathProblem;
+            
+            // STEP 2: Show answer verification (UNLIMITED TIME)
+            document.getElementById('taskDisplay').innerHTML = `
+                <div class="math-problem">${problem.answerToVerify}</div>
+                <p style="color: var(--color-text-secondary); font-size: 14px; margin-top: 16px;">Is this answer correct?</p>
+            `;
+            document.getElementById('taskControls').innerHTML = `
+                <button class="btn" onclick="answerMainMath(${correctAnswer}, ${solveStartTime}, ${solvingRT}, ${isTimeout})">True</button>
+                <button class="btn" onclick="answerMainMath(${correctAnswer}, ${solveStartTime}, ${solvingRT}, ${isTimeout})">False</button>
+            `;
+        }
+
+        function answerMainMath(correctAnswer, solveStartTime, solvingRT, wasSolveTimeout) {
+            const state = experimentState.aospan;
+            const verificationRT = Date.now() - (solveStartTime + solvingRT);
+            const totalRT = solvingRT + verificationRT;
+            
+            const userClickedTrue = event.target.textContent === 'True';
+            const correct = (userClickedTrue && correctAnswer) || (!userClickedTrue && !correctAnswer);
+            
+            state.mathTotal++;
+            if (correct) state.mathCorrect++;
+            
+            // Record response with detailed timing
+            state.mathResponses.push({ 
+                correct, 
+                solvingRT, 
+                verificationRT, 
+                totalRT, 
+                solveTimeout: wasSolveTimeout 
+            });
+            
+            // Show letter
+            const letter = state.letterPool[Math.floor(Math.random() * state.letterPool.length)];
+            state.currentLetters.push(letter);
+            
+            document.getElementById('taskDisplay').innerHTML = `<div class="letter-display">${letter}</div>`;
+            document.getElementById('taskControls').innerHTML = '';
+            
+            setTimeout(() => {
+                state.currentItem++;
+                showNextMainItem(window.currentMainCallback);
+            }, 1000);
+        }
+
+        // Letter Recall
+        function showLetterRecall(callback, isMainTask = false) {
+            const state = experimentState.aospan;
+            const setSize = state.currentLetters.length;
+            
+            document.getElementById('taskDisplay').innerHTML = `<p>Recall the ${setSize} letters in order:</p>`;
+            
+            let gridHTML = '<div class="recall-grid">';
+            for (let i = 0; i < setSize; i++) {
+                gridHTML += `<input type="text" maxlength="1" class="recall-input" data-index="${i}">`;
+            }
+            gridHTML += '</div>';
+            
+            document.getElementById('taskControls').innerHTML = gridHTML + '<button class="btn" id="submitRecall">Submit</button>';
+            
+            // Focus first input
+            const inputs = document.querySelectorAll('.recall-input');
+            inputs[0].focus();
+            
+            // Auto-advance to next input
+            inputs.forEach((input, idx) => {
+                input.addEventListener('input', () => {
+                    if (input.value && idx < inputs.length - 1) {
+                        inputs[idx + 1].focus();
+                    }
+                });
+            });
+            
+            document.getElementById('submitRecall').onclick = () => {
+                const recalled = [];
+                let allCorrect = true;
+                let lettersCorrect = 0;
+                
+                inputs.forEach((input, idx) => {
+                    const userLetter = input.value.toUpperCase();
+                    const correctLetter = state.currentLetters[idx];
+                    recalled.push(userLetter);
+                    
+                    if (userLetter === correctLetter) {
+                        lettersCorrect++;
+                    } else {
+                        allCorrect = false;
+                    }
+                });
+                
+                // Absolute scoring (Foster/Unsworth): only award points if ALL letters correct in order
+                if (isMainTask) {
+                    if (allCorrect) {
+                        state.totalScore += setSize;
+                    }
+                    state.totalLettersCorrect += lettersCorrect;
+                    
+                    // Record trial data
+                    state.trialData.push({
+                        trial: state.currentTrial + 1,
+                        setSize: setSize,
+                        letters: state.currentLetters.slice(),
+                        recalled: recalled,
+                        allCorrect: allCorrect,
+                        lettersCorrect: lettersCorrect,
+                        score: allCorrect ? setSize : 0
+                    });
+                }
+                
+                callback();
+            };
+        }
+
+        // Math Problem Generation
+        function generateMathProblem() {
+            const n1 = Math.ceil(Math.random() * 9);
+            const n2 = Math.ceil(Math.random() * 9);
+            const n3 = Math.ceil(Math.random() * 9);
+            const op1 = Math.random() > 0.5 ? '+' : '-';
+            const op2 = Math.random() > 0.5 ? '+' : '-';
+            
+            const firstResult = op1 === '+' ? n1 + n2 : n1 - n2;
+            const actualAnswer = op2 === '+' ? firstResult + n3 : firstResult - n3;
+            
+            // 50% chance of showing correct answer, 50% chance of off-by-1 or off-by-2
+            const isCorrect = Math.random() > 0.5;
+            const displayedAnswer = isCorrect ? actualAnswer : actualAnswer + (Math.random() > 0.5 ? 1 : -1) * (Math.ceil(Math.random() * 2));
+            
+            const problemQuestion = `(${n1} ${op1} ${n2}) ${op2} ${n3} = ?`;
+            const answerToVerify = displayedAnswer;
+            
+            return { problemQuestion, answerToVerify, isCorrect };
+        }
+
+        // Finish AOSPAN
+        function finishAOSPAN() {
+            const state = experimentState.aospan;
+            const mathAccuracy = (state.mathCorrect / state.mathTotal) * 100;
+            
+            // Check 85% threshold
+            if (mathAccuracy < 85) {
+                document.getElementById('retryMathAccuracy').textContent = `${mathAccuracy.toFixed(1)}%`;
+                showView('retryView');
+                return;
+            }
+            
+            // Show results
+            document.getElementById('finalScore').textContent = state.totalScore;
+            document.getElementById('finalMathAccuracy').textContent = `${mathAccuracy.toFixed(1)}%`;
+            document.getElementById('lettersCorrect').textContent = state.totalLettersCorrect;
+            
+            // Log data for verification
+            console.log('AOSPAN Complete');
+            console.log('Participant ID:', experimentState.participantId);
+            console.log('Age:', experimentState.participantAge);
+            console.log('Sex:', experimentState.participantSex);
+            console.log('Email:', experimentState.participantEmail);
+            console.log('Total Score:', state.totalScore, '/ 50');
+            console.log('Math Accuracy:', mathAccuracy.toFixed(2) + '%');
+            console.log('Total Letters Correct:', state.totalLettersCorrect);
+            console.log('Trial Data:', state.trialData);
+            
+            // Send data to Google Sheets
+            sendToGoogleSheets();
+            
+            showView('resultsView');
+        }
+        
+        // Google Sheets Integration
+        function sendToGoogleSheets() {
+            // REPLACE THIS URL WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
+            const GOOGLE_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+            
+            const state = experimentState.aospan;
+            const mathAccuracy = (state.mathCorrect / state.mathTotal) * 100;
+            
+            const dataToSend = {
+                timestamp: new Date().toISOString(),
+                participantId: experimentState.participantId,
+                age: experimentState.participantAge,
+                sex: experimentState.participantSex,
+                email: experimentState.participantEmail,
+                aospanScore: state.totalScore,
+                mathAccuracy: mathAccuracy.toFixed(2),
+                totalLettersCorrect: state.totalLettersCorrect,
+                mathTimeLimit: state.mathTimeLimit,
+                trialData: JSON.stringify(state.trialData),
+                mathResponses: JSON.stringify(state.mathResponses)
+            };
+            
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dataToSend)
+            })
+            .then(() => console.log('Data sent to Google Sheets'))
+            .catch(err => console.error('Error sending data:', err));
+        }
+
+        // Retry AOSPAN
+        function retryAOSPAN() {
+            // Reset counters but keep math time limit
+            const timeLimit = experimentState.aospan.mathTimeLimit;
+            experimentState.aospan = {
+                letterPool: 'FHKLNRSTY',
+                setSizes: [3, 4, 5, 6, 7],
+                currentPhase: '',
+                currentBlock: 0,
+                currentTrial: 0,
+                currentItem: 0,
+                currentSetSize: 0,
+                currentLetters: [],
+                mathProblems: [],
+                mathResponses: [],
+                mathRTs: [],
+                letterRecalls: [],
+                trialData: [],
+                mathCorrect: 0,
+                mathTotal: 0,
+                totalScore: 0,
+                totalLettersCorrect: 0,
+                mathTimeLimit: timeLimit,
+                practiceMathRTs: []
+            };
+            
+            // Skip practices, go straight to main task
+            document.getElementById('practiceAccuracy').textContent = '--';
+            showView('mainTaskInstructionsView');
+        }
+
+        // Continue to next phase (placeholder - integrate with your experiment)
+        function continueToNextPhase() {
+            alert('AOSPAN task complete! Now integrate this with your video experiment flow.');
+            // In your actual implementation, this would call your video sequence code
+            // For example:
+            // videoSequence = parseIDForVideoSequence(experimentState.participantId);
+            // showView('practiceIntroView'); // or whatever your next view is
+        }
+
+        // Progress bar
+        function updateProgress(percentage) {
+            document.getElementById('progressFill').style.width = percentage + '%';
+        }
+
+        // Initialize
+        console.log('Foster 2-Block AOSPAN Task - Ready');
+        console.log('Based on Foster et al. (2015) and Unsworth et al. (2005)');
+    </script>
+</body>
+</html>
