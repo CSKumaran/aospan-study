@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-    <!-- Redeploy trigger -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -80,6 +79,14 @@
             transition: background 0.2s;
             margin: var(--space-8) var(--space-8) 0 0;
         }
+        #submitRecall {
+            width: 80px;
+            height: 80px;
+            padding: 0;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: var(--radius-lg);
+        }
         .btn:hover { background: var(--color-primary-hover); }
         .btn:active { background: var(--color-primary-active); }
         .btn-secondary {
@@ -111,8 +118,13 @@
             h2 { font-size: 18px; }
             .math-problem { font-size: 24px; }
             .letter-display { font-size: 48px; }
-            .recall-input { width: 40px; height: 40px; font-size: 20px; }
+            .recall-input { width: 55px; height: 55px; font-size: 26px; }
             .btn { padding: var(--space-12) var(--space-16); font-size: 14px; }
+            #submitRecall {
+                width: 60px;
+                height: 60px;
+                font-size: 14px;
+            }
         }
         .task-display {
             text-align: center;
@@ -140,11 +152,30 @@
             flex-wrap: wrap;
             margin: var(--space-24) 0;
         }
+        .recall-container {
+            display: flex;
+            gap: var(--space-12);
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: var(--space-24) 0;
+        }
+
+        #submitRecall {
+            width: 80px;
+            height: 80px;
+            padding: 0;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: var(--radius-lg);
+            align-self: center;
+        }
+
         .recall-input {
-            width: 50px;
-            height: 50px;
+            width: 75px;
+            height: 75px;
             text-align: center;
-            font-size: 24px;
+            font-size: 50px;
             font-weight: 600;
             text-transform: uppercase;
             border: 2px solid var(--color-border);
@@ -229,7 +260,7 @@
         <div id="welcomeView" class="view active">
             <div class="card">
                 <h1>Working Memory Capacity Study</h1>
-                <p>Welcome! You are about to complete the Automated Operation Span (AOSPAN) task, a validated measure of working memory capacity.</p>
+                <p>Welcome to the Automated Operation Span (AOSPAN) task, a validated measure of working memory capacity.</p>
                 <p><strong>Time Required:</strong> Approximately 10-12 minutes</p>
                 
                 <h3>Task Overview</h3>
@@ -293,7 +324,7 @@
                     <li>Then you'll see an answer and judge if it's correct (True/False)</li>
                     <li>Try to work as quickly and accurately as possible</li>
                     <li>You will complete 15 practice problems</li>
-                    <li>Your response times will be used to set time limits for the main task</li>
+                    <li></li>
                 </ul>
                 <button class="btn" onclick="startMathPractice()">Start Math Practice</button>
             </div>
@@ -325,7 +356,7 @@
                 <ul class="instruction-list">
                     <li>You'll complete 10 trials across 2 blocks</li>
                     <li>Set sizes will range from 3 to 7 items</li>
-                    <li>Math problems now have time limits based on your practice performance</li>
+                    <li>Math problems now have time limits</li>
                     <li>Remember: maintain at least 85% accuracy on math problems</li>
                 </ul>
                 <div class="stats">
@@ -400,8 +431,8 @@
             participantEmail: '',
             aospan: {
                 letterPool: 'FHKLNRSTY',
-                setSizes: [3, 4, 5, 6, 7], // Will be repeated twice (2 blocks)
-                currentPhase: '', // 'letterPractice', 'mathPractice', 'combinedPractice', 'mainTask'
+                setSizes: [3, 4, 5, 6, 7],
+                currentPhase: '',
                 currentBlock: 0,
                 currentTrial: 0,
                 currentItem: 0,
@@ -416,9 +447,11 @@
                 mathTotal: 0,
                 totalScore: 0,
                 totalLettersCorrect: 0,
-                mathTimeLimit: 5000, // Default 5s, will be calculated from practice
+                mathTimeLimit: 5000,
+                calculatedTimeLimit: 0,  // stores uncapped calculation
                 practiceMathRTs: []
-            }
+}
+
         };
 
         // View management
@@ -468,7 +501,7 @@
             }
             
             state.currentSetSize = sizes[state.currentTrial];
-            state.currentLetters = [];
+            state.currentLetters = generateUniqueLetters(state.currentSetSize);
             state.currentItem = 0;
             
             showView('taskView');
@@ -490,8 +523,7 @@
                 return;
             }
             
-            const letter = state.letterPool[Math.floor(Math.random() * state.letterPool.length)];
-            state.currentLetters.push(letter);
+            const letter = state.currentLetters[state.currentItem];
             
             document.getElementById('taskDisplay').innerHTML = `<div class="letter-display">${letter}</div>`;
             document.getElementById('taskControls').innerHTML = '';
@@ -513,15 +545,21 @@
         function runMathPracticeTrial() {
             const state = experimentState.aospan;
             if (state.currentTrial >= 15) {
-                // Calculate time limit: mean + 2.5*SD
+                // Calculate time limit: mean + 2.5*SD (Foster protocol)
                 const mean = state.practiceMathRTs.reduce((a, b) => a + b, 0) / state.practiceMathRTs.length;
                 const variance = state.practiceMathRTs.reduce((sum, rt) => sum + Math.pow(rt - mean, 2), 0) / state.practiceMathRTs.length;
                 const sd = Math.sqrt(variance);
-                state.mathTimeLimit = Math.round(mean + 2.5 * sd);
-                console.log(`Math time limit set to ${state.mathTimeLimit}ms (mean: ${mean.toFixed(0)}ms, SD: ${sd.toFixed(0)}ms)`);
+                const calculatedLimit = Math.round(mean + 2.5 * sd);
+                
+                // Apply maximum ceiling of 6000ms (6 seconds) to maintain task validity
+                state.mathTimeLimit = Math.min(calculatedLimit, 6000);
+                state.calculatedTimeLimit = calculatedLimit; // Store for data analysis
+                
+                console.log(`Math time limit: ${state.mathTimeLimit}ms (calculated: ${calculatedLimit}ms, mean: ${mean.toFixed(0)}ms, SD: ${sd.toFixed(0)}ms${calculatedLimit > 6000 ? ' - CAPPED at 6000ms' : ''})`);
                 showView('combinedPracticeInstructionsView');
                 return;
             }
+
             
             showView('taskView');
             updateProgress((state.currentTrial / 15) * 100);
@@ -583,7 +621,7 @@
             }
             
             state.currentSetSize = 2;
-            state.currentLetters = [];
+            state.currentLetters = generateUniqueLetters(2);
             state.currentItem = 0;
             
             showView('taskView');
@@ -642,9 +680,8 @@
             state.mathTotal++;
             if (correct) state.mathCorrect++;
             
-            // Show letter
-            const letter = state.letterPool[Math.floor(Math.random() * state.letterPool.length)];
-            state.currentLetters.push(letter);
+            // Show letter from pre-generated unique sequence
+            const letter = state.currentLetters[state.currentItem];
             
             document.getElementById('taskDisplay').innerHTML = `<div class="letter-display">${letter}</div>`;
             document.getElementById('taskControls').innerHTML = '';
@@ -681,7 +718,7 @@
             // Determine set size (cycle through setSizes twice)
             const sizeIndex = state.currentTrial % state.setSizes.length;
             state.currentSetSize = state.setSizes[sizeIndex];
-            state.currentLetters = [];
+            state.currentLetters = generateUniqueLetters(state.currentSetSize);
             state.currentItem = 0;
             
             showView('taskView');
@@ -762,9 +799,8 @@
                 solveTimeout: wasSolveTimeout 
             });
             
-            // Show letter
-            const letter = state.letterPool[Math.floor(Math.random() * state.letterPool.length)];
-            state.currentLetters.push(letter);
+            // Show letter from pre-generated unique sequence
+            const letter = state.currentLetters[state.currentItem];
             
             document.getElementById('taskDisplay').innerHTML = `<div class="letter-display">${letter}</div>`;
             document.getElementById('taskControls').innerHTML = '';
@@ -782,14 +818,14 @@
             
             document.getElementById('taskDisplay').innerHTML = `<p>Recall the ${setSize} letters in order:</p>`;
             
-            let gridHTML = '<div class="recall-grid">';
+            let gridHTML = '<div class="recall-container"><div class="recall-grid">';
             for (let i = 0; i < setSize; i++) {
                 gridHTML += `<input type="text" maxlength="1" class="recall-input" data-index="${i}">`;
             }
-            gridHTML += '</div>';
-            
-            document.getElementById('taskControls').innerHTML = gridHTML + '<button class="btn" id="submitRecall">Submit</button>';
-            
+            gridHTML += '</div><button class="btn" id="submitRecall">Submit</button></div>';
+
+            document.getElementById('taskControls').innerHTML = gridHTML;
+
             // Focus first input
             const inputs = document.querySelectorAll('.recall-input');
             inputs[0].focus();
@@ -842,27 +878,116 @@
                 callback();
             };
         }
-
-        // Math Problem Generation
-        function generateMathProblem() {
-            const n1 = Math.ceil(Math.random() * 9);
-            const n2 = Math.ceil(Math.random() * 9);
-            const n3 = Math.ceil(Math.random() * 9);
-            const op1 = Math.random() > 0.5 ? '+' : '-';
-            const op2 = Math.random() > 0.5 ? '+' : '-';
+        // Generate unique letter sequence (no duplicates within trial)
+        function generateUniqueLetters(setSize) {
+            const pool = experimentState.aospan.letterPool.split('');
+            const selected = [];
             
-            const firstResult = op1 === '+' ? n1 + n2 : n1 - n2;
-            const actualAnswer = op2 === '+' ? firstResult + n3 : firstResult - n3;
+            for (let i = 0; i < setSize; i++) {
+                // Filter out already selected letters
+                const available = pool.filter(letter => !selected.includes(letter));
+                
+                // If pool exhausted (shouldn't happen with setSize <= 9), break
+                if (available.length === 0) break;
+                
+                const randomIndex = Math.floor(Math.random() * available.length);
+                selected.push(available[randomIndex]);
+            }
             
-            // 50% chance of showing correct answer, 50% chance of off-by-1 or off-by-2
-            const isCorrect = Math.random() > 0.5;
-            const displayedAnswer = isCorrect ? actualAnswer : actualAnswer + (Math.random() > 0.5 ? 1 : -1) * (Math.ceil(Math.random() * 2));
-            
-            const problemQuestion = `(${n1} ${op1} ${n2}) ${op2} ${n3} = ?`;
-            const answerToVerify = displayedAnswer;
-            
-            return { problemQuestion, answerToVerify, isCorrect };
+            return selected;
         }
+
+function generateMathProblem() {
+    let n1, n2, n3, op1, op2, firstResult, actualAnswer;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 20; // Reduced from 50
+    
+    // Array of guaranteed valid problems for fallback
+    const FALLBACK_PROBLEMS = [
+        { problem: "(4 + 3) - 2 = ?", answer: 5 },
+        { problem: "(6 + 2) - 3 = ?", answer: 5 },
+        { problem: "(8 - 3) + 1 = ?", answer: 6 },
+        { problem: "(5 + 2) - 1 = ?", answer: 6 },
+        { problem: "(9 - 4) + 2 = ?", answer: 7 }
+    ];
+    
+    // Keep generating until we get a valid answer in range 1-9
+    do {
+        n1 = Math.floor(Math.random() * 9) + 1;
+        n2 = Math.floor(Math.random() * 9) + 1;
+        n3 = Math.floor(Math.random() * 9) + 1;
+        op1 = Math.random() > 0.5 ? '+' : '-';
+        op2 = Math.random() > 0.5 ? '+' : '-';
+        
+        firstResult = op1 === '+' ? n1 + n2 : n1 - n2;
+        
+        // REMOVED intermediate result constraints - only check final answer
+        actualAnswer = op2 === '+' ? firstResult + n3 : firstResult - n3;
+        attempts++;
+        
+    } while ((actualAnswer < 1 || actualAnswer > 9) && attempts < MAX_ATTEMPTS);
+    
+    // CRITICAL FIX: Check if actualAnswer is undefined or invalid
+    const isAnswerInvalid = actualAnswer === undefined || actualAnswer < 1 || actualAnswer > 9;
+    
+    if (attempts >= MAX_ATTEMPTS || isAnswerInvalid) {
+        const fallback = FALLBACK_PROBLEMS[Math.floor(Math.random() * FALLBACK_PROBLEMS.length)];
+        
+        console.log(`🔴 FALLBACK USED after ${attempts} attempts`);
+        
+        return {
+            problemQuestion: fallback.problem,
+            answerToVerify: fallback.answer,
+            isCorrect: true, // Fallbacks are always correct for simplicity
+            actualAnswer: fallback.answer,
+            wasFallback: true
+        };
+    }
+    
+    // Simple 50/50 correct/incorrect
+    let displayedAnswer, isCorrect;
+    
+    if (Math.random() > 0.5) {
+        displayedAnswer = actualAnswer;
+        isCorrect = true;
+        // In generateMathProblem(), replace the incorrect answer section:
+    } else {
+        // Foster protocol: systematically check ±1, ±2, ±3 offsets
+        const possibleOffsets = [1, 2, 3, -1, -2, -3];
+        const validIncorrectAnswers = [];
+        
+        for (const offset of possibleOffsets) {
+            const candidate = actualAnswer + offset;
+            // Ensure candidate is valid and different from actual answer
+            if (candidate >= 1 && candidate <= 9 && candidate !== actualAnswer) {
+                validIncorrectAnswers.push(candidate);
+            }
+        }
+        
+        // If we have valid incorrect options, pick one randomly
+        if (validIncorrectAnswers.length > 0) {
+            const randomIndex = Math.floor(Math.random() * validIncorrectAnswers.length);
+            displayedAnswer = validIncorrectAnswers[randomIndex];
+            isCorrect = false;
+        } else {
+            // If no valid incorrect options, force correct answer
+            displayedAnswer = actualAnswer;
+            isCorrect = true;
+        }
+    }
+
+    
+    console.log(`✅ Generated: (${n1} ${op1} ${n2}) ${op2} ${n3} = ${actualAnswer}, Displayed: ${displayedAnswer}`);
+    
+    return {
+        problemQuestion: `(${n1} ${op1} ${n2}) ${op2} ${n3} = ?`,
+        answerToVerify: displayedAnswer,
+        isCorrect: isCorrect,
+        actualAnswer: actualAnswer,
+        wasFallback: false
+    };
+}
+
 
         // Finish AOSPAN
         function finishAOSPAN() {
@@ -900,8 +1025,8 @@
         
         // Google Sheets Integration
         function sendToGoogleSheets() {
-            // REPLACE THIS URL WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
-            const GOOGLE_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+            
+            const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx6fEpn3FJvSqcPIElIgP9FkILeLtFUGlLV-WuCE411bSrmSH2pGfutJw3PItvr1VTxjA/exec';
             
             const state = experimentState.aospan;
             const mathAccuracy = (state.mathCorrect / state.mathTotal) * 100;
@@ -916,9 +1041,12 @@
                 mathAccuracy: mathAccuracy.toFixed(2),
                 totalLettersCorrect: state.totalLettersCorrect,
                 mathTimeLimit: state.mathTimeLimit,
+                calculatedTimeLimit: state.calculatedTimeLimit,  // Add this line - uncapped value
+                practiceMathRTs: JSON.stringify(state.practiceMathRTs),
                 trialData: JSON.stringify(state.trialData),
                 mathResponses: JSON.stringify(state.mathResponses)
             };
+
             
             fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
